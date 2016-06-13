@@ -1,12 +1,10 @@
 package com.yin.myproject.demo.common.pool.impl;
 
+import java.nio.channels.IllegalSelectorException;
 import java.util.LinkedList;
+import java.util.TimerTask;
 
 import org.apache.commons.pool.PoolableObjectFactory;
-import org.apache.commons.pool.impl.CursorableLinkedList;
-import org.apache.commons.pool.impl.GenericKeyedObjectPool.ObjectTimestampPair;
-import org.apache.commons.pool.impl.GenericObjectPool.Evictor;
-import org.apache.commons.pool.impl.GenericObjectPool.Latch;
 
 import com.yin.myproject.demo.common.pool.BaseObjectPool;
 import com.yin.myproject.demo.common.pool.ObjectPool;
@@ -116,4 +114,136 @@ public class GenericObjectPool<T> extends BaseObjectPool<T> implements ObjectPoo
 		// TODO Auto-generated method stub
 	}
 
+	/**
+	 * 一个简单的结构体 封装一个对象实例和时间戳
+	 * 
+	 * @author XunzhiYin
+	 *
+	 * @param <T>
+	 */
+	static class ObjectTimestampPair<T> implements Comparable<T> {
+
+		/**
+		 * 对象实例
+		 */
+		T value;
+
+		/**
+		 * 时间戳
+		 */
+		long tstamp;
+
+		/**
+		 * 构造函数
+		 * 
+		 * @param value
+		 *            对象实例
+		 */
+		public ObjectTimestampPair(T value) {
+			this(value, System.currentTimeMillis());
+		}
+
+		/**
+		 * 构造函数
+		 * 
+		 * @param value
+		 *            对象实例
+		 * @param time
+		 *            时间戳
+		 */
+		public ObjectTimestampPair(T value, long time) {
+			this.value = value;
+			this.tstamp = time;
+		}
+
+		@Override
+		public String toString() {
+			return value + ";" + tstamp;
+		}
+
+		public int compareTo(Object obj) {
+			return compareTo(obj);
+		}
+
+		public int compareTo(ObjectTimestampPair<T> other) {
+			final long tstampdiff = this.tstamp - other.tstamp;
+			if (tstampdiff == 0) {
+				return System.identityHashCode(this) - System.identityHashCode(other);
+			} else {
+				return (int) Math.min(Math.max(tstampdiff, Integer.MIN_VALUE), Integer.MAX_VALUE);
+			}
+		}
+
+		public T getValue() {
+			return value;
+		}
+
+		public long getTstamp() {
+			return tstamp;
+		}
+	}
+
+	/**
+	 * Latch(闭锁)用于控制向线程中分配对象的顺序以保证公平性。换言之，根据现象对对象实例的获取来给线程分配对象
+	 * 
+	 * @author XunzhiYin
+	 *
+	 * @param <T>
+	 */
+	private static final class Latch<T> {
+		/* 对象实例和时间戳一组分配给Latch */
+		private ObjectTimestampPair<T> _pair;
+
+		/* Latch(对象)是否可以创建对象实例 */
+		private boolean _mayCreate = false;
+
+		private synchronized ObjectTimestampPair<T> getPair() {
+			return _pair;
+		}
+
+		private synchronized void setPair(ObjectTimestampPair<T> pair) {
+			_pair = pair;
+		}
+
+		private synchronized boolean mayCreate() {
+			return _mayCreate;
+		}
+
+		private synchronized void setMayCreate(boolean mayCreate) {
+			_mayCreate = mayCreate;
+		}
+		
+		private synchronized void reset(){
+			_pair = null;
+			_mayCreate = false;
+		}
+	}
+	
+	/**
+	 * 用于清除空闲的对象(idle object)
+	 * @author XunzhiYin
+	 *
+	 */
+	private class Evictor extends TimerTask{
+
+		@Override
+		public void run() {
+			// TODO Auto-generated method stub
+			
+		}
+		
+	}
+	
+	public void evict() throws Exception{
+		assertOpen();
+		synchronized(this){
+			
+		}
+	}
+	
+	protected final void assertOpen() throws IllegalStateException{
+		if(isClosed()){
+			throw new IllegalSelectorException("Pool not open");
+		}
+	}
 }
