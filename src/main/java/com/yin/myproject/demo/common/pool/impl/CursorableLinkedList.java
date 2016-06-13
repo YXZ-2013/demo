@@ -1,13 +1,13 @@
 package com.yin.myproject.demo.common.pool.impl;
 
 import java.io.Serializable;
+import java.nio.channels.IllegalSelectorException;
 import java.util.Collection;
 import java.util.ConcurrentModificationException;
 import java.util.Iterator;
 import java.util.List;
 import java.util.ListIterator;
-
-import org.apache.commons.pool.impl.CursorableLinkedList.Listable;
+import java.util.NoSuchElementException;
 
 class CursorableLinkedList<E> implements List<E>, Serializable {
 
@@ -50,8 +50,8 @@ class CursorableLinkedList<E> implements List<E>, Serializable {
 	}
 
 	public boolean add(E e) {
-		// TODO Auto-generated method stub
-		return false;
+		insertListable(_head.prev(), null, e);
+		return true;
 	}
 
 	public boolean remove(Object o) {
@@ -65,13 +65,25 @@ class CursorableLinkedList<E> implements List<E>, Serializable {
 	}
 
 	public boolean addAll(Collection<? extends E> c) {
-		// TODO Auto-generated method stub
-		return false;
+ 		if(c.isEmpty()){
+ 			return false;
+ 		}
+ 		Iterator<? extends E> iterator = c.iterator();
+ 		while(iterator.hasNext()){
+ 			insertListable(_head.prev(), null, iterator.next());
+ 		}
+ 		return true;
 	}
 
 	public boolean addAll(int index, Collection<? extends E> c) {
-		// TODO Auto-generated method stub
-		return false;
+		if (c.isEmpty()) {
+			return false;
+		}
+		Iterator<? extends E> it = c.iterator();
+		while (it.hasNext()) {
+			insertListable(_head.prev(), null, it.next());
+		}
+		return true;
 	}
 
 	public boolean removeAll(Collection<?> c) {
@@ -100,8 +112,17 @@ class CursorableLinkedList<E> implements List<E>, Serializable {
 	}
 
 	public void add(int index, E element) {
-		// TODO Auto-generated method stub
-
+		if (index == _size) {
+			add(element);
+		} else {
+			if (index < 0 || index > _size) {
+				throw new IndexOutOfBoundsException(String.valueOf(index)
+						+ " < 0 or " + String.valueOf(index) + " > " + _size);
+			}
+			Listable<E> succ = (isEmpty() ? null : getListableAt(index));
+			Listable<E> pred = (null == succ ? null : succ.prev());
+			insertListable(pred, succ, element);
+		}
 	}
 
 	public E remove(int index) {
@@ -142,8 +163,8 @@ class CursorableLinkedList<E> implements List<E>, Serializable {
 	 */
 	protected Listable<E> getListableAt(int index) {
 		if (index < 0 || index >= _size) {
-			throw new IndexOutOfBoundsException(
-					String.valueOf(index) + " < 0 or " + String.valueOf(index) + " >= " + _size);
+			throw new IndexOutOfBoundsException(String.valueOf(index)
+					+ " < 0 or " + String.valueOf(index) + " >= " + _size);
 		}
 		if (index <= _size / 2) {
 			Listable<E> elt = _head.next();
@@ -159,40 +180,43 @@ class CursorableLinkedList<E> implements List<E>, Serializable {
 			return elt;
 		}
 	}
-	
+
 	/**
 	 * 在集合中插入新的对象
+	 * 
 	 * @param before
 	 * @param after
 	 * @param value
 	 * @return
 	 */
-	protected Listable<E> insertListable(Listable<E> before,Listable<E> after,E value){
+	protected Listable<E> insertListable(Listable<E> before, Listable<E> after,
+			E value) {
 		_modCount++;
 		_size++;
 		Listable<E> elt = new Listable<E>(before, after, value);
-		if(null != before){
+		if (null != before) {
 			before.setNext(elt);
-		}else{
+		} else {
 			_head.setPrev(elt);
 		}
-		
-		if(null != after){
+
+		if (null != after) {
 			after.setPrev(elt);
-		}else{
+		} else {
 			_head.setPrev(elt);
 		}
 		broadcastListableInserted(elt);
 		return elt;
 	}
-	
+
 	/**
 	 * 向。。。通知有特定元素添加进集合,
+	 * 
 	 * @param elt
 	 */
-	 protected void broadcastListableInserted(Listable<E> elt) {
-		 
-	 }
+	protected void broadcastListableInserted(Listable<E> elt) {
+
+	}
 
 	/**
 	 * 内部类
@@ -202,7 +226,7 @@ class CursorableLinkedList<E> implements List<E>, Serializable {
 	 * 定义Listable对象,用来存放对象节点(包含当前元素,前置节点以及后置节点)
 	 * 
 	 * @author XunzhiYin
-	 *
+	 * 
 	 * @param <E>
 	 */
 	static class Listable<E> implements Serializable {
@@ -249,7 +273,7 @@ class CursorableLinkedList<E> implements List<E>, Serializable {
 	 * 自定义迭代器
 	 * 
 	 * @author XunzhiYin
-	 *
+	 * 
 	 */
 	class ListIter implements ListIterator<E> {
 		Listable<E> _cur = null;
@@ -274,58 +298,96 @@ class CursorableLinkedList<E> implements List<E>, Serializable {
 		}
 
 		public boolean hasNext() {
-			// TODO Auto-generated method stub
-			return false;
+			checkForComod();
+			return (null != _cur.next() && _cur.prev() != _head.prev());
 		}
 
 		public E next() {
-			// TODO Auto-generated method stub
-			return null;
+			checkForComod();
+			if (!hasNext()) {
+				throw new NoSuchElementException();
+			} else {
+				E ret = _cur.next().value();
+				_lastReturned = _cur.next();
+				_cur.setPrev(_cur.next());
+				_cur.setNext(_cur.next().next());
+				_nextIndex++;
+				return ret;
+			}
 		}
 
 		public boolean hasPrevious() {
-			// TODO Auto-generated method stub
-			return false;
+			checkForComod();
+			return (null != _cur.prev() && _cur.next() != _head.next());
 		}
 
 		public E previous() {
-			// TODO Auto-generated method stub
-			return null;
+			checkForComod();
+			if (!hasPrevious()) {
+				throw new NoSuchElementException();
+			} else {
+				E ret = _cur.prev().value();
+				_lastReturned = _cur.prev();
+				_cur.setNext(_cur.prev());
+				_cur.setPrev(_cur.prev().prev());
+				_nextIndex--;
+				return ret;
+			}
 		}
 
 		public int nextIndex() {
-			// TODO Auto-generated method stub
-			return 0;
+			checkForComod();
+			if (!hasNext()) {
+				return size();
+			}
+			return _nextIndex;
 		}
 
 		public int previousIndex() {
-			// TODO Auto-generated method stub
-			return 0;
+			checkForComod();
+			if (!hasPrevious()) {
+				return -1;
+			}
+			return _nextIndex - 1;
 		}
 
 		public void remove() {
-			// TODO Auto-generated method stub
-
+			checkForComod();
+			if (null == _lastReturned) {
+				throw new IllegalStateException();
+			} else {
+				_cur.setNext(_lastReturned == _head.prev() ? null
+						: _lastReturned.next());
+				_cur.setPrev(_lastReturned == _head.next() ? null
+						: _lastReturned.prev());
+				_lastReturned = null;
+				_nextIndex--;
+				_expectedModCount++;
+			}
 		}
 
 		public void set(E e) {
-			// TODO Auto-generated method stub
-
+			checkForComod();
+			try {
+				_lastReturned.setVlaue(e);
+			} catch (NullPointerException ex) {
+				throw new IllegalSelectorException();
+			}
 		}
 
 		public void add(E e) {
 			checkForComod();
-			Listable<E> elt = insertListable(_cur.prev(),_cur.next(),e);
+			Listable<E> elt = insertListable(_cur.prev(), _cur.next(), e);
 			_cur.setPrev(elt);
 			_cur.setNext(elt.next());
 			_lastReturned = null;
 			_nextIndex++;
 			_expectedModCount++;
-			
+
 		}
-		
-		protected void checkForComod(){
-			if(_expectedModCount != _modCount){
+
+		protected void checkForComod() {
+			if (_expectedModCount != _modCount) {
 				throw new ConcurrentModificationException();
 			}
 		}
