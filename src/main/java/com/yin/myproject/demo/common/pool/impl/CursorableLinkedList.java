@@ -1,7 +1,10 @@
 package com.yin.myproject.demo.common.pool.impl;
 
 import java.io.Serializable;
+import java.lang.ref.WeakReference;
+import java.lang.reflect.Array;
 import java.nio.channels.IllegalSelectorException;
+import java.util.ArrayList;
 import java.util.Collection;
 import java.util.ConcurrentModificationException;
 import java.util.Iterator;
@@ -9,7 +12,7 @@ import java.util.List;
 import java.util.ListIterator;
 import java.util.NoSuchElementException;
 
-class CursorableLinkedList<E> implements List<E>, Serializable {
+public class CursorableLinkedList<E> implements List<E>, Serializable {
 
 	private static final long serialVersionUID = 1L;
 	/* 集合中元素的个数 */
@@ -18,35 +21,61 @@ class CursorableLinkedList<E> implements List<E>, Serializable {
 	protected transient int _modCount = 0;
 	/**/
 	protected transient Listable<E> _head = new Listable<E>(null, null, null);
+	/**/
+	protected transient List<WeakReference<Cursor>> _cursors = new ArrayList<WeakReference<Cursor>>();
+
+	/**
+	 * empty constructor
+	 */
+	public CursorableLinkedList() {
+	}
 
 	public int size() {
-		// TODO Auto-generated method stub
-		return 0;
+		return _size;
 	}
 
 	public boolean isEmpty() {
-		// TODO Auto-generated method stub
-		return false;
+		return (0 == _size);
 	}
 
 	public boolean contains(Object o) {
-		// TODO Auto-generated method stub
+		for (Listable<E> elt = _head.next(), past = null; null != elt
+				&& past != _head.prev(); elt = (past = elt).next()) {
+			if ((null == o && null == elt.value()) || (o != null && o.equals(elt.value()))) {
+				return true;
+			}
+		}
 		return false;
 	}
 
 	public Iterator<E> iterator() {
-		// TODO Auto-generated method stub
-		return null;
+		return listIterator(0);
 	}
 
 	public Object[] toArray() {
-		// TODO Auto-generated method stub
-		return null;
+		Object[] array = new Object[_size];
+		int i = 0;
+		for (Listable<E> elt = _head.next(), past = null; null != elt
+				&& past != _head.prev(); elt = (past = elt).next()) {
+			array[i++] = elt.value();
+		}
+		return array;
 	}
 
+	@SuppressWarnings("unchecked")
 	public <T> T[] toArray(T[] a) {
-		// TODO Auto-generated method stub
-		return null;
+		if (a.length < _size) {
+			a = (T[]) Array.newInstance(a.getClass().getComponentType(), _size);
+		}
+		int i = 0;
+		for (Listable<E> elt = _head._next, past = null; null != elt
+				&& past != _head.prev(); elt = (past = elt).next()) {
+			a[i++] = (T) elt.value();
+		}
+		if (a.length > _size) {
+			a[_size] = null;
+		}
+		return a;
 	}
 
 	public boolean add(E e) {
@@ -55,24 +84,69 @@ class CursorableLinkedList<E> implements List<E>, Serializable {
 	}
 
 	public boolean remove(Object o) {
-		// TODO Auto-generated method stub
+		for (Listable<E> elt = _head.next(), past = null; null != elt
+				&& past != _head.prev(); elt = (past = elt).next()) {
+			if (null == o && null == elt.value()) {
+				removeListable(elt);
+				return true;
+			} else if (o != null && o.equals(elt.value())) {
+				removeListable(elt);
+				return true;
+			}
+		}
 		return false;
+	}
+
+	private void removeListable(Listable<E> elt) {
+		_modCount++;
+		_size--;
+		if (_head.next() == elt) {
+			_head.setNext(elt.next());
+		}
+		if (null != elt.next()) {
+			elt.next().setPrev(elt.prev());
+		}
+		if (_head.prev() == elt) {
+			_head.setPrev(elt.prev());
+		}
+		if (null != elt.prev()) {
+			elt.prev().setNext(elt.next());
+		}
+		broadcastListableRemoved(elt);
+	}
+
+	private void broadcastListableRemoved(Listable<E> elt) {
+		Iterator<WeakReference<Cursor>> it = _cursors.iterator();
+		while (it.hasNext()) {
+			WeakReference<Cursor> ref = it.next();
+			Cursor cursor = ref.get();
+			if (cursor == null) {
+				it.remove();
+			} else {
+				cursor.listableRemoved(elt);
+			}
+		}
 	}
 
 	public boolean containsAll(Collection<?> c) {
-		// TODO Auto-generated method stub
-		return false;
+		Iterator<?> it = c.iterator();
+		while (it.hasNext()) {
+			if (!this.contains(it.next())) {
+				return false;
+			}
+		}
+		return true;
 	}
 
 	public boolean addAll(Collection<? extends E> c) {
- 		if(c.isEmpty()){
- 			return false;
- 		}
- 		Iterator<? extends E> iterator = c.iterator();
- 		while(iterator.hasNext()){
- 			insertListable(_head.prev(), null, iterator.next());
- 		}
- 		return true;
+		if (c.isEmpty()) {
+			return false;
+		}
+		Iterator<? extends E> iterator = c.iterator();
+		while (iterator.hasNext()) {
+			insertListable(_head.prev(), null, iterator.next());
+		}
+		return true;
 	}
 
 	public boolean addAll(int index, Collection<? extends E> c) {
@@ -87,28 +161,63 @@ class CursorableLinkedList<E> implements List<E>, Serializable {
 	}
 
 	public boolean removeAll(Collection<?> c) {
-		// TODO Auto-generated method stub
-		return false;
+		if (0 == c.size() || 0 == _size) {
+			return false;
+		} else {
+			boolean changed = false;
+			Iterator<?> it = iterator();
+			while (it.hasNext()) {
+				if (c.contains(it.next())) {
+					it.remove();
+					changed = true;
+				}
+			}
+			return changed;
+		}
 	}
 
 	public boolean retainAll(Collection<?> c) {
-		// TODO Auto-generated method stub
-		return false;
+		boolean changed = false;
+		Iterator<?> it = iterator();
+		while (it.hasNext()) {
+			if (!c.contains(it.next())) {
+				it.remove();
+				changed = true;
+			}
+		}
+		return changed;
 	}
 
 	public void clear() {
-		// TODO Auto-generated method stub
-
+		Iterator<E> it = iterator();
+		while (it.hasNext()) {
+			it.next();
+			it.remove();
+		}
 	}
 
 	public E get(int index) {
-		// TODO Auto-generated method stub
-		return null;
+		return getListableAt(index).value();
 	}
 
 	public E set(int index, E element) {
-		// TODO Auto-generated method stub
-		return null;
+		Listable<E> elt = getListableAt(index);
+		E val = elt.setVlaue(element);
+		broadcastListableChanged(elt);
+		return val;
+	}
+
+	private void broadcastListableChanged(Listable<E> elt) {
+		Iterator<WeakReference<Cursor>> it = _cursors.iterator();
+		while (it.hasNext()) {
+			WeakReference<Cursor> ref = it.next();
+			Cursor cursor = ref.get();
+			if (cursor == null) {
+				it.remove();
+			} else {
+				cursor.listableChanged(elt);
+			}
+		}
 	}
 
 	public void add(int index, E element) {
@@ -116,8 +225,8 @@ class CursorableLinkedList<E> implements List<E>, Serializable {
 			add(element);
 		} else {
 			if (index < 0 || index > _size) {
-				throw new IndexOutOfBoundsException(String.valueOf(index)
-						+ " < 0 or " + String.valueOf(index) + " > " + _size);
+				throw new IndexOutOfBoundsException(
+						String.valueOf(index) + " < 0 or " + String.valueOf(index) + " > " + _size);
 			}
 			Listable<E> succ = (isEmpty() ? null : getListableAt(index));
 			Listable<E> pred = (null == succ ? null : succ.prev());
@@ -126,33 +235,77 @@ class CursorableLinkedList<E> implements List<E>, Serializable {
 	}
 
 	public E remove(int index) {
-		// TODO Auto-generated method stub
-		return null;
+		Listable<E> elt = getListableAt(index);
+		E ret = elt.value();
+		removeListable(elt);
+		return ret;
 	}
 
 	public int indexOf(Object o) {
-		// TODO Auto-generated method stub
-		return 0;
+		int ndx = 0;
+		if (null == o) {
+			for (Listable<E> elt = _head.next(), past = null; null != elt
+					&& past != _head.prev(); elt = (past = elt).next()) {
+				if (null == elt.value()) {
+					return ndx;
+				}
+				ndx++;
+			}
+		} else {
+			for (Listable<E> elt = _head.next(), past = null; null != elt
+					&& past != _head.prev(); elt = (past = elt).next()) {
+				if (o.equals(elt.value())) {
+					return ndx;
+				}
+				ndx++;
+			}
+		}
+		return -1;
 	}
 
 	public int lastIndexOf(Object o) {
-		// TODO Auto-generated method stub
-		return 0;
+		int ndx = _size - 1;
+		if (null == o) {
+			for (Listable<E> elt = _head.prev(), past = null; null != elt
+					&& past != _head.next(); elt = (past = elt).prev()) {
+				if (null == elt.value()) {
+					return ndx;
+				}
+				ndx--;
+			}
+		} else {
+			for (Listable<E> elt = _head.prev(), past = null; null != elt
+					&& past != _head.next(); elt = (past = elt).prev()) {
+				if (o.equals(elt.value())) {
+					return ndx;
+				}
+				ndx--;
+			}
+		}
+		return -1;
 	}
 
 	public ListIterator<E> listIterator() {
-		// TODO Auto-generated method stub
-		return null;
+		return listIterator(0);
 	}
 
 	public ListIterator<E> listIterator(int index) {
-		// TODO Auto-generated method stub
-		return null;
+		if (index < 0 || index > _size) {
+			throw new IndexOutOfBoundsException(index + " < 0 or > " + _size);
+		}
+		return new ListIter(index);
 	}
 
-	public List<E> subList(int fromIndex, int toIndex) {
-		// TODO Auto-generated method stub
+	public List<E> subList(int i, int j) {
+		// TODO:
 		return null;
+		// if (i < 0 || j > _size || i > j) {
+		// throw new IndexOutOfBoundsException();
+		// } else if (i == 0 && j == _size) {
+		// return this;
+		// } else {
+		// return new CursorableSubList<E>(this, i, j);
+		// }
 	}
 
 	/**
@@ -163,8 +316,8 @@ class CursorableLinkedList<E> implements List<E>, Serializable {
 	 */
 	protected Listable<E> getListableAt(int index) {
 		if (index < 0 || index >= _size) {
-			throw new IndexOutOfBoundsException(String.valueOf(index)
-					+ " < 0 or " + String.valueOf(index) + " >= " + _size);
+			throw new IndexOutOfBoundsException(
+					String.valueOf(index) + " < 0 or " + String.valueOf(index) + " >= " + _size);
 		}
 		if (index <= _size / 2) {
 			Listable<E> elt = _head.next();
@@ -189,15 +342,14 @@ class CursorableLinkedList<E> implements List<E>, Serializable {
 	 * @param value
 	 * @return
 	 */
-	protected Listable<E> insertListable(Listable<E> before, Listable<E> after,
-			E value) {
+	protected Listable<E> insertListable(Listable<E> before, Listable<E> after, E value) {
 		_modCount++;
 		_size++;
 		Listable<E> elt = new Listable<E>(before, after, value);
 		if (null != before) {
 			before.setNext(elt);
 		} else {
-			_head.setPrev(elt);
+			_head.setNext(elt);
 		}
 
 		if (null != after) {
@@ -209,13 +361,46 @@ class CursorableLinkedList<E> implements List<E>, Serializable {
 		return elt;
 	}
 
+	protected void registerCursor(Cursor cur) {
+		for (Iterator<WeakReference<Cursor>> it = _cursors.iterator(); it.hasNext();) {
+			WeakReference<Cursor> ref = it.next();
+			if (ref.get() == null) {
+				it.remove();
+			}
+		}
+		_cursors.add(new WeakReference<Cursor>(cur));
+	}
+
+	protected void unregisterCursor(Cursor cur) {
+		for (Iterator<WeakReference<Cursor>> it = _cursors.iterator(); it.hasNext();) {
+			WeakReference<Cursor> ref = it.next();
+			Cursor cursor = ref.get();
+			if (cursor == null) {
+				it.remove();
+			} else if (cursor == cur) {
+				ref.clear();
+				it.remove();
+				break;
+			}
+		}
+	}
+
 	/**
 	 * 向。。。通知有特定元素添加进集合,
 	 * 
 	 * @param elt
 	 */
 	protected void broadcastListableInserted(Listable<E> elt) {
-
+		Iterator<WeakReference<Cursor>> it = _cursors.iterator();
+		while (it.hasNext()) {
+			WeakReference<Cursor> ref = it.next();
+			Cursor cursor = ref.get();
+			if (cursor == null) {
+				it.remove();
+			} else {
+				cursor.listableInserted(elt);
+			}
+		}
 	}
 
 	/**
@@ -356,10 +541,8 @@ class CursorableLinkedList<E> implements List<E>, Serializable {
 			if (null == _lastReturned) {
 				throw new IllegalStateException();
 			} else {
-				_cur.setNext(_lastReturned == _head.prev() ? null
-						: _lastReturned.next());
-				_cur.setPrev(_lastReturned == _head.next() ? null
-						: _lastReturned.prev());
+				_cur.setNext(_lastReturned == _head.prev() ? null : _lastReturned.next());
+				_cur.setPrev(_lastReturned == _head.next() ? null : _lastReturned.prev());
 				_lastReturned = null;
 				_nextIndex--;
 				_expectedModCount++;
@@ -389,6 +572,92 @@ class CursorableLinkedList<E> implements List<E>, Serializable {
 		protected void checkForComod() {
 			if (_expectedModCount != _modCount) {
 				throw new ConcurrentModificationException();
+			}
+		}
+
+	}
+
+	public class Cursor extends ListIter implements ListIterator<E> {
+		boolean _valid = false;
+
+		Cursor(int index) {
+			super(index);
+			_valid = true;
+			registerCursor(this);
+		}
+
+		@Override
+		public int previousIndex() {
+			throw new UnsupportedOperationException();
+		}
+
+		@Override
+		public int nextIndex() {
+			throw new UnsupportedOperationException();
+		}
+
+		@Override
+		public void add(E e) {
+			checkForComod();
+			Listable<E> elt = insertListable(_cur.prev(), _cur.next(), e);
+			_cur.setPrev(elt);
+			_cur.setNext(elt.next());
+			_lastReturned = null;
+			_nextIndex++;
+			_expectedModCount++;
+		}
+
+		protected void listableRemoved(Listable<E> elt) {
+			if (null == _head.prev()) {
+				_cur.setNext(null);
+			} else if (_cur.next() == elt) {
+				_cur.setNext(elt.next());
+			}
+			if (null == _head.next()) {
+				_cur.setPrev(null);
+			} else if (_cur.prev() == elt) {
+				_cur.setPrev(elt.prev());
+			}
+			if (_lastReturned == elt) {
+				_lastReturned = null;
+			}
+		}
+
+		protected void listableInserted(Listable<E> elt) {
+			if (null == _cur.next() && null == _cur.prev()) {
+				_cur.setNext(elt);
+			} else if (_cur.prev() == elt.prev()) {
+				_cur.setNext(elt);
+			}
+			if (_cur.next() == elt.next()) {
+				_cur.setPrev(elt);
+			}
+			if (_lastReturned == elt) {
+				_lastReturned = null;
+			}
+		}
+
+		protected void listableChanged(Listable<E> elt) {
+			if (_lastReturned == elt) {
+				_lastReturned = null;
+			}
+		}
+
+		@Override
+		protected void checkForComod() {
+			if (!_valid) {
+				throw new ConcurrentModificationException();
+			}
+		}
+
+		protected void invalidate() {
+			_valid = false;
+		}
+
+		public void close() {
+			if (_valid) {
+				_valid = false;
+				unregisterCursor(this);
 			}
 		}
 
