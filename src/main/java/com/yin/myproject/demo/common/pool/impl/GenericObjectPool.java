@@ -1,6 +1,5 @@
 package com.yin.myproject.demo.common.pool.impl;
 
-import java.nio.channels.IllegalSelectorException;
 import java.util.LinkedList;
 import java.util.TimerTask;
 
@@ -212,38 +211,48 @@ public class GenericObjectPool<T> extends BaseObjectPool<T> implements ObjectPoo
 		private synchronized void setMayCreate(boolean mayCreate) {
 			_mayCreate = mayCreate;
 		}
-		
-		private synchronized void reset(){
+
+		private synchronized void reset() {
 			_pair = null;
 			_mayCreate = false;
 		}
 	}
-	
+
 	/**
 	 * 用于清除空闲的对象(idle object)
+	 * 
 	 * @author XunzhiYin
 	 *
 	 */
-	private class Evictor extends TimerTask{
-
+	private class Evictor extends TimerTask {
 		@Override
 		public void run() {
-			// TODO Auto-generated method stub
-			
+			try {
+				evict();
+			} catch (Exception e) {
+				// ignored
+			} catch (OutOfMemoryError oome) {
+				// Log problem but give evictor thread a chance to continue in
+				// case error is recoverable
+				oome.printStackTrace(System.err);
+			}
+			try {
+				ensureMinIdle();
+			} catch (Exception e) {
+				// ignored
+			}
 		}
-		
 	}
-	
-	public void evict() throws Exception{
+
+	public void evict() throws Exception {
 		assertOpen();
-		synchronized(this){
-			
+		synchronized (this) {
+
 		}
 	}
-	
-	protected final void assertOpen() throws IllegalStateException{
-		if(isClosed()){
-			throw new IllegalSelectorException("Pool not open");
-		}
+
+	public void ensureMinIdle() {
+		// TODO Auto-generated method stub
+		
 	}
 }
