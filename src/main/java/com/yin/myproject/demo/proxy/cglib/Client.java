@@ -2,11 +2,13 @@ package com.yin.myproject.demo.proxy.cglib;
 
 public class Client {
 	public static void main(String[] args) {
-//		BookServiceBean service = BookServiceFactory.getInstance();
-//		doMethod(service);
-//		
-		hasAuth();
-		hasNoAuth();
+		// BookServiceBean service = BookServiceFactory.getInstance();
+		// doMethod(service);
+		//
+//		hasAuth();
+//		hasNoAuth();
+		
+		hasAuthByFilter();
 	}
 
 	private static void doMethod(BookServiceBean service) {
@@ -15,14 +17,21 @@ public class Client {
 		service.update();
 		service.delete();
 	}
-	
-	public static void hasAuth(){
+
+	public static void hasAuth() {
 		BookServiceBean bean = BookServiceFactory.getAuthInstance(new AuthProxy("张三"));
 		doMethod(bean);
 	}
-	
-	public static void hasNoAuth(){
+
+	public static void hasNoAuth() {
 		BookServiceBean bean = BookServiceFactory.getAuthInstance(new AuthProxy("李四"));
+		doMethod(bean);
+	}
+
+	public static void hasAuthByFilter() {
+		BookServiceBean bean = BookServiceFactory.getAuthInstanceByFilter(new AuthProxy("张三"));
+		doMethod(bean);
+		bean = BookServiceFactory.getAuthInstanceByFilter(new AuthProxy("李四"));
 		doMethod(bean);
 	}
 }
