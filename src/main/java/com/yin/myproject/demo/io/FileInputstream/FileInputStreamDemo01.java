@@ -1,4 +1,4 @@
-package com.yin.myproject.demo.io.inputstream;
+package com.yin.myproject.demo.io.FileInputstream;
 
 import java.io.FileInputStream;
 import java.io.FileOutputStream;
