@@ -1,4 +1,4 @@
-package com.yin.myproject.demo.io;
+package com.yin.myproject.demo.io.randomAccessFile;
 
 import java.io.RandomAccessFile;
 
