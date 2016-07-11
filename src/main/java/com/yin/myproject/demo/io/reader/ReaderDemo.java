@@ -69,7 +69,7 @@ public class ReaderDemo {
 		reader.close();
 	}
 	
-	public void pipleReaderDemo() throws Exception{
-		
+	
+	public void pipedReaderDemo() throws Exception{
 	}
 }
