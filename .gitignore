@@ -16,3 +16,10 @@ hs_err_pid*
 .classpath
 .project
 .settings
+/.idea/
+.idea/compiler.xml
+.idea/copyright/
+.idea/demo.iml
+.idea/misc.xml
+.idea/modules.xml
+.idea/workspace.xml

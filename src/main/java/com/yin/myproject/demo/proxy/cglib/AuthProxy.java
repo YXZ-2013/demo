@@ -12,7 +12,7 @@ public class AuthProxy implements MethodInterceptor{
 	public AuthProxy(String name){
 		this.name = name;
 	}
-	
+
 	public Object intercept(Object obj, Method method, Object[] args, MethodProxy proxy) throws Throwable {
 		if(!"张三".equals(name)){
 			System.out.println("没有权限");
@@ -20,6 +20,4 @@ public class AuthProxy implements MethodInterceptor{
 		}
 		return proxy.invokeSuper(obj, args);
 	}
-
-	
 }
