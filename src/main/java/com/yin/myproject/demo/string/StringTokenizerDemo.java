@@ -1,4 +1,4 @@
-package com.yin.myproject.demo.String;
+package com.yin.myproject.demo.string;
 
 import java.util.StringTokenizer;
 
