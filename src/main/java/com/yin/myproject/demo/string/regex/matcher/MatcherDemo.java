@@ -1,4 +1,4 @@
-package com.yin.myproject.demo.util.regex.matcher;
+package com.yin.myproject.demo.string.regex.matcher;
 
 import java.util.LinkedList;
 import java.util.List;
@@ -67,7 +67,6 @@ public class MatcherDemo {
 		StringBuilder patternBuilder = new StringBuilder();
 		Pattern p = Pattern.compile("\\?|\\*|\\{((\\{[^/]+?\\}|[^/{}]|\\\\[{}])+?)\\}");
 		Matcher m = p.matcher("{123333}");
-		int end = 0;
 		while (m.find()) {
 			String match = m.group();
 			int groupCount = m.groupCount();

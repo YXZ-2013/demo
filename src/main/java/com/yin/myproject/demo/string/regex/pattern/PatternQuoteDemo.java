@@ -1,4 +1,4 @@
-package com.yin.myproject.demo.util.regex.pattern;
+package com.yin.myproject.demo.string.regex.pattern;
 
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
