@@ -16,7 +16,7 @@ public abstract class BaseObjectPool<T> implements ObjectPool<T> {
 		return -1;
 	}
 
-	public void clear() throws Exception, UnsupportedOperationException {
+	public void clear() throws UnsupportedOperationException {
 		throw new UnsupportedOperationException();
 	}
 
