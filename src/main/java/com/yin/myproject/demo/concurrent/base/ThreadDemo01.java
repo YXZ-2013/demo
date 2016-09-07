@@ -1,4 +1,4 @@
-package com.yin.myproject.demo.concurrent;
+package com.yin.myproject.demo.concurrent.base;
 
 public class ThreadDemo01 extends Thread {
 

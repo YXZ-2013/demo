@@ -1,4 +1,4 @@
-package com.yin.myproject.demo.concurrent;
+package com.yin.myproject.demo.concurrent.base;
 
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
