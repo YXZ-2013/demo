@@ -23,8 +23,8 @@ public class Sleeper extends Thread {
 	public static void main(String[] args) {
 		Sleeper sleepy = new Sleeper("Sleepy", 1500);
 		Sleeper grumpy = new Sleeper("Grumpy", 1500);
-		Joiner dopey = new Joiner("Dopey", sleepy);
-		Joiner doc = new Joiner("Doc", grumpy);
+		new Joiner("Dopey", sleepy);
+		new Joiner("Doc", grumpy);
 		grumpy.interrupt();
 	}
 }
@@ -44,7 +44,6 @@ class Joiner extends Thread {
 			sleeper.join();
 		} catch (InterruptedException e) {
 			e.printStackTrace();
-			return;
 		}
 		System.out.println(getName() + " join completed");
 	}
