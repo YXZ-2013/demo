@@ -19,7 +19,7 @@ public class EvenChecker implements Runnable {
 				System.out.println(val + " not even");
 				generator.cancel();
 			}
-			if (val == 100000) {
+			if (val == 10000000) {
 				System.out.println("已到100000");
 				generator.cancel();
 				System.exit(0);
