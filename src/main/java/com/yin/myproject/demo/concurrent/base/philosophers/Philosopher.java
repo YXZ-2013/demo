@@ -16,7 +16,7 @@ public class Philosopher implements Runnable {
 		TimeUnit.MILLISECONDS.sleep(rand.nextInt(ponderFactor * 250));
 	}
 
-	public Philosopher(Chopstick left, Chopstick right, int ponderFactor, int id) {
+	public Philosopher(Chopstick left, Chopstick right, int id, int ponderFactor) {
 		this.left = left;
 		this.right = right;
 		this.ponderFactor = ponderFactor;
