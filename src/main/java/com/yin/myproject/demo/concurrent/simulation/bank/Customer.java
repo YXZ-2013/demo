@@ -1,7 +1,7 @@
 package com.yin.myproject.demo.concurrent.simulation.bank;
 
 /**
- * 客户
+ * 顾客
  *
  */
 public class Customer {
