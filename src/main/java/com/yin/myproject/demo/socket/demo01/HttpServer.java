@@ -35,9 +35,12 @@ public class HttpServer {
 				inputStream = socket.getInputStream();
 				outputStream = socket.getOutputStream();
 
+				System.out.println("创建Request对象");
 				Request request = new Request(inputStream);
 				request.parse();
-
+				System.out.println("Request对象创建完毕");
+				
+				System.out.println("创建Response对象");
 				Response response = new Response(outputStream);
 				response.setRequest(request);
 				response.sendStaticResource();
