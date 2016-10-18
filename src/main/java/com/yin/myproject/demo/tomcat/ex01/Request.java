@@ -1,4 +1,4 @@
-package com.yin.myproject.demo.socket.demo01;
+package com.yin.myproject.demo.tomcat.ex01;
 
 import java.io.BufferedReader;
 import java.io.IOException;
